@@ -8,16 +8,16 @@ import (
 
 type seg struct {
 	marker Marker
-	size int
+	size   int
 }
 
-var tests = []struct{
-	path string
+var tests = []struct {
+	path      string
 	imageSize int
-	meta []seg
-} {
+	meta      []seg
+}{
 	{
-		path: "lego.jpg",
+		path:      "lego.jpg",
 		imageSize: 216990,
 		meta: []seg{
 			{SOI, 0},
@@ -31,7 +31,7 @@ var tests = []struct{
 			{DHT, 79},
 			{DHT, 28},
 			{DHT, 72},
-			{SOS, 10 },
+			{SOS, 10},
 		},
 	},
 }
@@ -52,7 +52,7 @@ func TestDecodeMetadata(t *testing.T) {
 				t.Fatalf("len: got %d, want %d", len(segments), len(tt.meta))
 			}
 			for i, s := range segments {
-				got := seg{ s.Marker, len(s.Data) }
+				got := seg{s.Marker, len(s.Data)}
 				want := tt.meta[i]
 				if got != want {
 					t.Errorf("%d: got %d, want %d", i, got, want)
@@ -74,16 +74,16 @@ func TestDecodeSegments(t *testing.T) { // TODO
 				t.Fatal(err)
 			}
 
-			want := make([]seg, len(tt.meta) + 1)
+			want := make([]seg, len(tt.meta)+1)
 			copy(want, tt.meta)
 			want[len(want)-2].size = tt.imageSize
-			want[len(want)-1] = seg { EOI, 0 }
+			want[len(want)-1] = seg{EOI, 0}
 
 			if len(segments) != len(want) {
 				t.Fatalf("len: got %d, want %d", len(segments), len(want))
 			}
 			for i, s := range segments {
-				g := seg{ s.Marker, len(s.Data) }
+				g := seg{s.Marker, len(s.Data)}
 				w := want[i]
 				if g != w {
 					t.Errorf("%d: got %d, want %d", i, g, w)

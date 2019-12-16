@@ -82,42 +82,74 @@ const (
 	EOI = 0xD9
 )
 
-
 func (m Marker) String() string {
-	switch (m) {
-	case SOI: return "SOI"
-	case SOF0: return "SOF0"
-	case SOF2: return "SOF2"
-	case DHT: return "DHT"
-	case DQT: return "DQT"
-	case DRI: return "DRI"
-	case SOS: return "SOS"
-	case RST0: return "RST0"
-	case RST1: return "RST1"
-	case RST2: return "RST2"
-	case RST3: return "RST3"
-	case RST4: return "RST4"
-	case RST5: return "RST5"
-	case RST6: return "RST6"
-	case RST7: return "RST7"
-	case APP0: return "APP0"
-	case APP1: return "APP1"
-	case APP2: return "APP2"
-	case APP3: return "APP3"
-	case APP4: return "APP4"
-	case APP5: return "APP5"
-	case APP6: return "APP6"
-	case APP7: return "APP7"
-	case APP8: return "APP8"
-	case APP9: return "APP9"
-	case APP10: return "APP10"
-	case APP11: return "APP11"
-	case APP12: return "APP12"
-	case APP13: return "APP13"
-	case APP14: return "APP14"
-	case APP15: return "APP15"
-	case COM: return "COM"
-	case EOI: return "EOI"
+	switch m {
+	case SOI:
+		return "SOI"
+	case SOF0:
+		return "SOF0"
+	case SOF2:
+		return "SOF2"
+	case DHT:
+		return "DHT"
+	case DQT:
+		return "DQT"
+	case DRI:
+		return "DRI"
+	case SOS:
+		return "SOS"
+	case RST0:
+		return "RST0"
+	case RST1:
+		return "RST1"
+	case RST2:
+		return "RST2"
+	case RST3:
+		return "RST3"
+	case RST4:
+		return "RST4"
+	case RST5:
+		return "RST5"
+	case RST6:
+		return "RST6"
+	case RST7:
+		return "RST7"
+	case APP0:
+		return "APP0"
+	case APP1:
+		return "APP1"
+	case APP2:
+		return "APP2"
+	case APP3:
+		return "APP3"
+	case APP4:
+		return "APP4"
+	case APP5:
+		return "APP5"
+	case APP6:
+		return "APP6"
+	case APP7:
+		return "APP7"
+	case APP8:
+		return "APP8"
+	case APP9:
+		return "APP9"
+	case APP10:
+		return "APP10"
+	case APP11:
+		return "APP11"
+	case APP12:
+		return "APP12"
+	case APP13:
+		return "APP13"
+	case APP14:
+		return "APP14"
+	case APP15:
+		return "APP15"
+	case COM:
+		return "COM"
+	case EOI:
+		return "EOI"
 	}
 	return fmt.Sprintf("%X", byte(m))
 }

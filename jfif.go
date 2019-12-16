@@ -86,7 +86,7 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 		}
 
 		// Length includes the 2 bytes for itself
-		s := Segment{Marker(marker), make([]byte, int(length) - 2) }
+		s := Segment{Marker(marker), make([]byte, int(length)-2)}
 		if err = binary.Read(r, binary.BigEndian, &s.Data); err != nil {
 			return segments, err
 		}
