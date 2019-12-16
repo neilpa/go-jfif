@@ -1,12 +1,14 @@
 package main
 
 import (
-	"fmt"
+	"bytes"
 	"log"
 	"os"
 	"strings"
 
 	"neilpa.me/go-jfif"
+
+	"trimmer.io/go-xmp/xmp"
 )
 
 const (
@@ -29,7 +31,18 @@ func main() {
 			// TODO Support ExtendedXMP with merging
 			// https://stackoverflow.com/questions/23253281/reading-jpg-files-xmp-metadata
 			if strings.HasPrefix(string(s.Data), sigXMP) {
-				fmt.Println(string(s.Data)[len(sigXMP):])
+				packets, err := xmp.ScanPackets(bytes.NewReader(s.Data))
+				if err != nil {
+					log.Fatal(err)
+				}
+
+				for _, p := range packets {
+					doc, err := xmp.Read(bytes.NewReader(p))
+					if err != nil {
+						log.Fatal(err)
+					}
+					doc.Dump()
+				}
 			}
 		}
 	}
