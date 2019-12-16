@@ -2,6 +2,7 @@ package jfif
 
 import "fmt"
 
+// Marker identifies the various types of JFIF segments.
 type Marker byte
 
 const (
