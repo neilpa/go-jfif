@@ -1,7 +1,7 @@
 // Package jfif supports the basics of reading segments from JPEG files.
 //
 // https://en.wikipedia.org/wiki/JPEG#Syntax_and_structure
-package jfif
+package jfif // import "neilpa.me/go-jfif"
 
 import (
 	"encoding/binary"
