@@ -4,6 +4,7 @@
 package jfif // import "neilpa.me/go-jfif"
 
 import (
+	"bufio"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -100,21 +101,43 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 		if marker == sosMarker {
 			break
 		}
-
 	}
 
 	return segments, nil
 }
 
 // DecodeSegments reads segments until the end of image (EOI) marker is read, or an
-// error is encountered, including EOF.
+// error is encountered, including EOF. Unlike DecodeMetadata, the entropy-coded
+// image data is included in the SOS segment data slice.
 // TODO Should this return "io.ErrUnexpectedEOF" when io.EOF is seen before EOI?
 func DecodeSegments(r io.Reader) ([]Segment, error) {
 	segments, err := DecodeMetadata(r)
 	if err != nil {
 		return segments, err
 	}
-	return segments, errors.New("TODO: Read until EOI")
+	sos := &segments[len(segments)-1]
+
+	b := bufio.NewReader(r)
+	for {
+		data, err := b.ReadBytes(0xff)
+		sos.Data = append(sos.Data, data[:len(data)-1]...)
+		if err != nil {
+			return segments, err
+		}
+
+		marker, err := b.ReadByte()
+		if err != nil {
+			return segments, err
+		}
+		if marker == eoiMarker {
+			segments = append(segments, Segment{marker, nil})
+			break
+		}
+		// Add back the sentinal and marker and continue
+		sos.Data = append(sos.Data, 0xff, marker)
+	}
+
+	return segments, nil
 }
 
 func readByte(r io.Reader) (b byte, err error) {
