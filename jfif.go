@@ -10,12 +10,6 @@ import (
 	"io"
 )
 
-const (
-	soiMarker = 0xd8 // Start Of Image.
-	eoiMarker = 0xd9 // End Of Image.
-	sosMarker = 0xda // Start Of Stream/Scan.
-)
-
 var (
 	// ErrInvalid means the reader did not begin with a start of image
 	// marker.
@@ -27,7 +21,7 @@ var (
 
 // Segment identifies a part of a JPEG file and associatedd raw data.
 type Segment struct {
-	Marker byte
+	Marker
 	Data []byte
 }
 
@@ -41,13 +35,13 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 	if err != nil {
 		return nil, err
 	}
-	if magic[0] != 0xff || magic[1] != soiMarker {
+	if magic[0] != 0xff || magic[1] != byte(SOI) {
 		return nil, ErrInvalid
 	}
 
 	// This behavior matches that of image/jpeg.decode
 	// https://golang.org/src/image/jpeg/reader.go?s=22312:22357#L526
-	segments := []Segment{{magic[1], nil}}
+	segments := []Segment{{Marker(magic[1]), nil}}
 	for {
 		var buf [2]byte
 		err = binary.Read(r, binary.BigEndian, &buf)
@@ -92,13 +86,13 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 		}
 
 		// Length includes the 2 bytes for itself
-		s := Segment{marker, make([]byte, int(length) - 2) }
+		s := Segment{Marker(marker), make([]byte, int(length) - 2) }
 		if err = binary.Read(r, binary.BigEndian, &s.Data); err != nil {
 			return segments, err
 		}
 		segments = append(segments, s)
 
-		if marker == sosMarker {
+		if marker == SOS {
 			break
 		}
 	}
@@ -129,8 +123,8 @@ func DecodeSegments(r io.Reader) ([]Segment, error) {
 		if err != nil {
 			return segments, err
 		}
-		if marker == eoiMarker {
-			segments = append(segments, Segment{marker, nil})
+		if marker == EOI {
+			segments = append(segments, Segment{Marker(marker), nil})
 			break
 		}
 		// Add back the sentinal and marker and continue

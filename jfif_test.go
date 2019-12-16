@@ -7,7 +7,7 @@ import (
 )
 
 type seg struct {
-	marker byte
+	marker Marker
 	size int
 }
 
@@ -20,18 +20,18 @@ var tests = []struct{
 		path: "lego.jpg",
 		imageSize: 216990,
 		meta: []seg{
-			{0xd8, 0},
-			{0xe0, 14},
-			{0xe1, 11308},
-			{0xe1, 5023},
-			{0xdb, 65},
-			{0xdb, 65},
-			{0xc0, 15},
-			{0xc4, 29},
-			{0xc4, 79},
-			{0xc4, 28},
-			{0xc4, 72},
-			{0xda, 10},
+			{SOI, 0},
+			{APP0, 14},
+			{APP1, 11308},
+			{APP1, 5023},
+			{DQT, 65},
+			{DQT, 65},
+			{SOF0, 15},
+			{DHT, 29},
+			{DHT, 79},
+			{DHT, 28},
+			{DHT, 72},
+			{SOS, 10 },
 		},
 	},
 }
@@ -77,7 +77,7 @@ func TestDecodeSegments(t *testing.T) { // TODO
 			want := make([]seg, len(tt.meta) + 1)
 			copy(want, tt.meta)
 			want[len(want)-2].size = tt.imageSize
-			want[len(want)-1] = seg { eoiMarker, 0 }
+			want[len(want)-1] = seg { EOI, 0 }
 
 			if len(segments) != len(want) {
 				t.Fatalf("len: got %d, want %d", len(segments), len(want))
