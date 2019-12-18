@@ -14,12 +14,10 @@ type seg struct {
 
 var tests = []struct {
 	path      string
-	imageSize int
-	meta      []seg
+	meta, img []seg
 }{
 	{
 		path:      "lego.jpg",
-		imageSize: 216990,
 		meta: []seg{
 			{marker: SOI, size: 0},
 			{marker: APP0, size: 14},
@@ -33,6 +31,10 @@ var tests = []struct {
 			{marker: DHT, size: 28},
 			{marker: DHT, size: 72},
 			{marker: SOS, size: 10},
+		},
+		img: []seg {
+			{marker: XXX, size: 216980},
+			{marker: EOI, size: 0},
 		},
 	},
 }
@@ -66,10 +68,9 @@ func TestDecodeSegments(t *testing.T) { // TODO
 				t.Fatal(err)
 			}
 
-			want := make([]seg, len(tt.meta)+1)
+			want := make([]seg, len(tt.meta))
 			copy(want, tt.meta)
-			want[len(want)-2].size = tt.imageSize // TODO + ImageSize?
-			want[len(want)-1] = seg{EOI, 0, -1}
+			want = append(want, tt.img...)
 
 			verifySegments(t, segments, want)
 		})
@@ -89,11 +90,16 @@ func verifySegments(t *testing.T, segments []Segment, want []seg) {
 		if g != w {
 			t.Fatalf("%d: got %d, want %d", i, g, w)
 		}
-		// 0xff and marker
-		offset += 2
-		if s.Data != nil {
-			// 2-byte length and data
-			offset += 2 + int64(len(s.Data))
+		if s.Marker != XXX {
+			// 0xff and marker
+			offset += 2
+			if s.Data != nil {
+				// 2-byte length and data
+				offset += 2 + int64(len(s.Data))
+			}
+		} else {
+			// raw image data is standalone
+			offset += int64(len(s.Data))
 		}
 	}
 }

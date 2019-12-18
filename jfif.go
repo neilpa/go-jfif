@@ -23,19 +23,18 @@ var (
 type Segment struct {
 	// Marker identifies the type of segment.
 	Marker
-	// Data is the raw bytes of a segment, excluding the initial 4 bytes (e.g.
-	// 0xff, marker, and 2-byte length). For segments lacking a length, this
-	// will be nil.
+	// Data is the raw bytes of a segment, excluding the initial 4 bytes
+	// (e.g. 0xff, marker, and 2-byte length). For segments lacking a
+	// length, this will be nil.
 	Data []byte
 	// Offset is the address of the 0xff byte that started this segment that
 	// is then followed by the marker.
 	Offset int64
 }
 
-// DecodeMetadata reads segments until the start of stream (SOS) marker is read,
-// or an error is encountered, including EOF. This will read the SOS segment but
-// not the subsequent entropy-coded image data.
-// TODO Should this return "io.ErrUnexpectedEOF" when EOF is seen before SOS?
+// DecodeMetadata reads segments until the start of stream (SOS) marker is
+// read, or an error is encountered, including EOF. This will read the SOS
+// segment and its payload but not the subsequent entropy-coded image data.
 func DecodeMetadata(r io.Reader) ([]Segment, error) {
 	counter, ok := r.(*countReader)
 	if !ok {
@@ -116,10 +115,10 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 	return segments, nil
 }
 
-// DecodeSegments reads segments until the end of image (EOI) marker is read, or an
-// error is encountered, including EOF. Unlike DecodeMetadata, the entropy-coded
-// image data is included in the SOS segment data slice.
-// TODO Should this return "io.ErrUnexpectedEOF" when io.EOF is seen before EOI?
+// DecodeSegments reads segments through an end of image (EOI) marker, or
+// an error is encountered, including EOF. The entropy-coded image data
+// _should_ be the penulatimate segment, following the SOS segment and
+// with the fabricated XXX marker as an identifer.
 func DecodeSegments(r io.Reader) ([]Segment, error) {
 	counter, ok := r.(*countReader)
 	if !ok {
@@ -131,14 +130,19 @@ func DecodeSegments(r io.Reader) ([]Segment, error) {
 	if err != nil {
 		return segments, err
 	}
-	sos := &segments[len(segments)-1]
 
+	seg := Segment{Marker: XXX, Offset: counter.count}
 	b := bufio.NewReader(r)
 	for {
 		data, err := b.ReadBytes(0xff)
-		sos.Data = append(sos.Data, data[:len(data)-1]...)
 		if err != nil {
 			return segments, err
+		}
+		data = data[:len(data)-1]
+		if seg.Data == nil {
+			seg.Data = data
+		} else {
+			seg.Data = append(seg.Data, data...)
 		}
 
 		marker, err := b.ReadByte()
@@ -146,12 +150,12 @@ func DecodeSegments(r io.Reader) ([]Segment, error) {
 			return segments, err
 		}
 		if marker == EOI {
-			s := Segment{Marker(marker), nil, counter.count - 2}
-			segments = append(segments, s)
+			eoi := Segment{Marker(marker), nil, counter.count - 2}
+			segments = append(segments, seg, eoi)
 			break
 		}
 		// Add back the sentinal and marker and continue
-		sos.Data = append(sos.Data, 0xff, marker)
+		seg.Data = append(seg.Data, 0xff, marker)
 	}
 
 	return segments, nil
