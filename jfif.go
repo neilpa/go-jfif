@@ -1,4 +1,5 @@
-// Package jfif supports the basics of reading segments from JPEG files.
+// Package jfif supports simple reading and writing of segments from a JPEG
+// file.
 //
 // https://en.wikipedia.org/wiki/JPEG#Syntax_and_structure
 package jfif // import "neilpa.me/go-jfif"
@@ -159,6 +160,27 @@ func DecodeSegments(r io.Reader) ([]Segment, error) {
 	}
 
 	return segments, nil
+}
+
+// EncodeSegment writes the given segment.
+func EncodeSegment(w io.Writer, seg Segment) error {
+	// Image data is written raw and _should_ be preceded by an SOS segment
+	if XXX == seg.Marker {
+		_, err := w.Write(seg.Data)
+		return err
+	}
+	// Everything else needs the 0xff, marker and potential payload
+	_, err := w.Write([]byte{0xff, byte(seg.Marker)})
+	if err != nil || seg.Data == nil {
+		return err
+	}
+	// Payload size includes it's own 2-bytes
+	err = binary.Write(w, binary.BigEndian, uint16(len(seg.Data))+2)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(seg.Data)
+	return err
 }
 
 func readByte(r io.Reader) (b byte, err error) {

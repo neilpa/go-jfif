@@ -77,6 +77,9 @@ func TestDecodeSegments(t *testing.T) { // TODO
 	}
 }
 
+func TestEncodeSegment(t *testing.T) { // TODO
+}
+
 func verifySegments(t *testing.T, segments []Segment, want []seg) {
 	if len(segments) != len(want) {
 		t.Fatalf("len: got %d, want %d", len(segments), len(want))
