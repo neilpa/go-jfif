@@ -20,6 +20,6 @@ func main() {
 	}
 
 	for _, s := range segs {
-		fmt.Printf("%s %d\n", s.Marker, len(s.Data))
+		fmt.Printf("%s\t%d\n", s.Marker, len(s.Data))
 	}
 }
