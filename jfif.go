@@ -8,8 +8,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-
-	"fmt"
 )
 
 var (
@@ -66,7 +64,6 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 		sentinel, marker := buf[0], buf[1]
 
 		for sentinel != 0xff {
-			fmt.Println("skipping format error")
 			// Technically a format error but mimics go's stdlib which is
 			// itself matching the behavor of libjpeg.
 			sentinel = marker
@@ -77,7 +74,6 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 		}
 
 		if marker == 0 {
-			fmt.Println("byte stuffing")
 			// Byte Stuffing, e.g. "Extraneous Data"
 			// TODO Does this actually matter if reading to EOI once the
 			// SOS marker is seen? If so, should these be included?
@@ -85,7 +81,6 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 		}
 
 		for marker == 0xff {
-			fmt.Println("fill byte")
 			// Eat fill bytes that may precede a marker
 			// TODO Does this actually matter if reading to EOI once the
 			// SOS marker is seen?
