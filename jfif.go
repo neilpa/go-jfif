@@ -41,7 +41,7 @@ type Segment struct {
 func DecodeMetadata(r io.Reader) ([]Segment, error) {
 	counter, ok := r.(*countReader)
 	if !ok {
-		counter = &countReader{ reader: r }
+		counter = &countReader{reader: r}
 	}
 	r = counter
 
@@ -128,7 +128,7 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 func DecodeSegments(r io.Reader) ([]Segment, error) {
 	counter, ok := r.(*countReader)
 	if !ok {
-		counter = &countReader{ reader: r }
+		counter = &countReader{reader: r}
 	}
 	r = counter
 
@@ -151,7 +151,7 @@ func DecodeSegments(r io.Reader) ([]Segment, error) {
 			return segments, err
 		}
 		if marker == EOI {
-			s := Segment{Marker(marker), nil, counter.count-2}
+			s := Segment{Marker(marker), nil, counter.count - 2}
 			segments = append(segments, s)
 			break
 		}
@@ -169,7 +169,7 @@ func readByte(r io.Reader) (b byte, err error) {
 
 type countReader struct {
 	reader io.Reader
-	count int64
+	count  int64
 }
 
 func (c *countReader) Read(p []byte) (n int, err error) {
