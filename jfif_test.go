@@ -9,6 +9,7 @@ import (
 type seg struct {
 	marker Marker
 	size   int
+	offset int64
 }
 
 var tests = []struct {
@@ -20,18 +21,18 @@ var tests = []struct {
 		path:      "lego.jpg",
 		imageSize: 216990,
 		meta: []seg{
-			{SOI, 0},
-			{APP0, 14},
-			{APP1, 11308},
-			{APP1, 5023},
-			{DQT, 65},
-			{DQT, 65},
-			{SOF0, 15},
-			{DHT, 29},
-			{DHT, 79},
-			{DHT, 28},
-			{DHT, 72},
-			{SOS, 10},
+			{marker: SOI, size: 0},
+			{marker: APP0, size: 14},
+			{marker: APP1, size: 11308},
+			{marker: APP1, size: 5023},
+			{marker: DQT, size: 65},
+			{marker: DQT, size: 65},
+			{marker: SOF0, size: 15},
+			{marker: DHT, size: 29},
+			{marker: DHT, size: 79},
+			{marker: DHT, size: 28},
+			{marker: DHT, size: 72},
+			{marker: SOS, size: 10},
 		},
 	},
 }
@@ -48,16 +49,7 @@ func TestDecodeMetadata(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if len(segments) != len(tt.meta) {
-				t.Fatalf("len: got %d, want %d", len(segments), len(tt.meta))
-			}
-			for i, s := range segments {
-				got := seg{s.Marker, len(s.Data)}
-				want := tt.meta[i]
-				if got != want {
-					t.Errorf("%d: got %d, want %d", i, got, want)
-				}
-			}
+			verifySegments(t, segments, tt.meta)
 		})
 	}
 }
@@ -76,19 +68,33 @@ func TestDecodeSegments(t *testing.T) { // TODO
 
 			want := make([]seg, len(tt.meta)+1)
 			copy(want, tt.meta)
-			want[len(want)-2].size = tt.imageSize
-			want[len(want)-1] = seg{EOI, 0}
+			want[len(want)-2].size = tt.imageSize // TODO + ImageSize?
+			want[len(want)-1] = seg{EOI, 0, -1}
 
-			if len(segments) != len(want) {
-				t.Fatalf("len: got %d, want %d", len(segments), len(want))
-			}
-			for i, s := range segments {
-				g := seg{s.Marker, len(s.Data)}
-				w := want[i]
-				if g != w {
-					t.Errorf("%d: got %d, want %d", i, g, w)
-				}
-			}
+			verifySegments(t, segments, want)
 		})
+	}
+}
+
+
+func verifySegments(t *testing.T, segments []Segment, want []seg) {
+	if len(segments) != len(want) {
+		t.Fatalf("len: got %d, want %d", len(segments), len(want))
+	}
+
+	var offset int64
+	for i, s := range segments {
+		g := seg{s.Marker, len(s.Data), s.Offset}
+		w := want[i]
+		w.offset = offset
+		if g != w {
+			t.Fatalf("%d: got %d, want %d", i, g, w)
+		}
+		// 0xff and marker
+		offset += 2
+		if s.Data != nil {
+			// 2-byte length and data
+			offset += 2 + int64(len(s.Data))
+		}
 	}
 }
