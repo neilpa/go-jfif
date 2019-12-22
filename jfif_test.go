@@ -4,35 +4,51 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-)
 
-type seg struct {
-	marker Marker
-	size   int
-	offset int64
-}
+	"fmt"
+)
 
 var tests = []struct {
 	path string
-	meta []seg
+	meta []SegmentRef
 }{
 	{
 		path:      "lego.jpg",
-		meta: []seg{
-			{marker: SOI, size: 0},
-			{marker: APP0, size: 14},
-			{marker: APP1, size: 11308},
-			{marker: APP1, size: 5023},
-			{marker: DQT, size: 65},
-			{marker: DQT, size: 65},
-			{marker: SOF0, size: 15},
-			{marker: DHT, size: 29},
-			{marker: DHT, size: 79},
-			{marker: DHT, size: 28},
-			{marker: DHT, size: 72},
-			{marker: SOS, size: 10},
+		meta: []SegmentRef{
+			{Marker: SOI, Size: 2},
+			{Marker: APP0, Size: 18},
+			{Marker: APP1, Size: 11312},
+			{Marker: APP1, Size: 5027},
+			{Marker: DQT, Size: 69},
+			{Marker: DQT, Size: 69},
+			{Marker: SOF0, Size: 19},
+			{Marker: DHT, Size: 33},
+			{Marker: DHT, Size: 83},
+			{Marker: DHT, Size: 32},
+			{Marker: DHT, Size: 76},
+			{Marker: SOS, Size: 14},
 		},
 	},
+}
+
+func TestDecodeSegments(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			f, err := os.Open(filepath.Join("testdata", tt.path))
+			if err != nil {
+				t.Fatal(err)
+			}
+			segments, err := DecodeSegments(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+			refs := make([]SegmentRef, len(segments))
+			for i, seg := range segments {
+				refs[i] = seg.SegmentRef
+			}
+			verifySegments(t, refs, tt.meta)
+		})
+	}
 }
 
 func TestDecodeMetadata(t *testing.T) {
@@ -42,37 +58,32 @@ func TestDecodeMetadata(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			segments, err := DecodeMetadata(f)
+			refs, err := DecodeMetadata(f)
 			if err != nil {
 				t.Fatal(err)
 			}
-
-			verifySegments(t, segments, tt.meta)
+			verifySegments(t, refs, tt.meta)
 		})
 	}
 }
 
-func TestEncodeSegment(t *testing.T) { // TODO
+func TestEncodeSegments(t *testing.T) { // TODO
 }
 
-func verifySegments(t *testing.T, segments []Segment, want []seg) {
-	if len(segments) != len(want) {
-		t.Fatalf("len: got %d, want %d", len(segments), len(want))
+func verifySegments(t *testing.T, got, want []SegmentRef) {
+	if len(got) != len(want) {
+		fmt.Println(got)
+		fmt.Println(want)
+		t.Fatalf("len: got %d, want %d", len(got), len(want))
 	}
 
 	var offset int64
-	for i, s := range segments {
-		g := seg{s.Marker, len(s.Data), s.Offset}
+	for i, g := range got {
 		w := want[i]
-		w.offset = offset
+		w.Offset = offset
 		if g != w {
-			t.Fatalf("%d: got %d, want %d", i, g, w)
+			t.Fatalf("%d: got %#v, want %#v", i, g, w)
 		}
-		// 0xff and marker
-		offset += 2
-		if s.Data != nil {
-			// 2-byte length and data
-			offset += 2 + int64(len(s.Data))
-		}
+		offset += int64(g.Size)
 	}
 }
