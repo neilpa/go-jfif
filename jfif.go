@@ -18,6 +18,13 @@ var (
 
 	// ErrShortSegment means a segment length was < 2 bytes.
 	ErrShortSegment = errors.New("Short segment")
+
+	// ErrWrongMarker means a segment method was called where the marker
+	// didn't match an expected type.
+	ErrWrongMarker = errors.New("Wrong marker")
+
+	// ErrUnknownApp means an APPn segment has an unrecognized signature.
+	ErrUnknownApp = errors.New("Unknown APPn segment")
 )
 
 // Segment represents a distinct region of a JPEG file.
@@ -31,6 +38,20 @@ type Segment struct {
 	// Offset is the address of the 0xff byte that started this segment that
 	// is then followed by the marker.
 	Offset int64
+}
+
+// AppPayload extracts a recognized signature and payload bytes. Otherwise
+// returns an erorr for non APPn segments or if the signature is unknown.
+func (s Segment) AppPayload() (string, []byte, error) {
+	if s.Marker < APP0 || s.Marker > APP15 {
+		return "", nil, ErrWrongMarker
+	}
+	for _, sig := range appnSigs[int(s.Marker-APP0)] {
+		if sig == string(s.Data[:len(sig)]) {
+			return sig, s.Data[len(sig):], nil
+		}
+	}
+	return "", nil, ErrUnknownApp
 }
 
 // DecodeMetadata reads segments until the start of stream (SOS) marker is
