@@ -20,6 +20,7 @@ func main() {
 	}
 
 	for _, s := range segs {
-		fmt.Printf("%s\t%d\n", s.Marker, len(s.Data))
+		sig, _, _ := s.AppPayload()
+		fmt.Printf("%s\t%d\t%s\n", s.Marker, len(s.Data), sig)
 	}
 }
