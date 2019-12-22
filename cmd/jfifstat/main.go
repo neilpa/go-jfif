@@ -14,7 +14,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	segs, err := jfif.DecodeSegments(f)
+	segs, err := jfif.DecodeMetadata(f)
 	if err != nil {
 		log.Fatal(err)
 	}

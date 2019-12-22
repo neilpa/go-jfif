@@ -81,13 +81,6 @@ const (
 
 	// EOI (End Of Image) marker.
 	EOI = 0xD9
-
-	// XXX is a fake marker that isn't used by other segments. It's used
-	// to signal the entropy-coded image data that is otherwise embedded
-	// in the SOS segment.
-	// TODO This is probably a bad idea and should think about
-	// a better way to stream the image segment.
-	XXX = 0xBF
 )
 
 func (m Marker) String() string {

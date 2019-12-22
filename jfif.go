@@ -5,7 +5,6 @@
 package jfif // import "neilpa.me/go-jfif"
 
 import (
-	"bufio"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -137,60 +136,9 @@ func DecodeMetadata(r io.Reader) ([]Segment, error) {
 	return segments, nil
 }
 
-// DecodeSegments reads segments through an end of image (EOI) marker, or
-// an error is encountered, including EOF. The entropy-coded image data
-// _should_ be the penulatimate segment, following the SOS segment and
-// with the fabricated XXX marker as an identifer.
-func DecodeSegments(r io.Reader) ([]Segment, error) {
-	counter, ok := r.(*countReader)
-	if !ok {
-		counter = &countReader{reader: r}
-	}
-	r = counter
-
-	segments, err := DecodeMetadata(r)
-	if err != nil {
-		return segments, err
-	}
-
-	seg := Segment{Marker: XXX, Offset: counter.count}
-	b := bufio.NewReader(r)
-	for {
-		data, err := b.ReadBytes(0xff)
-		if err != nil {
-			return segments, err
-		}
-		data = data[:len(data)-1]
-		if seg.Data == nil {
-			seg.Data = data
-		} else {
-			seg.Data = append(seg.Data, data...)
-		}
-
-		marker, err := b.ReadByte()
-		if err != nil {
-			return segments, err
-		}
-		if marker == EOI {
-			eoi := Segment{Marker(marker), nil, counter.count - 2}
-			segments = append(segments, seg, eoi)
-			break
-		}
-		// Add back the sentinal and marker and continue
-		seg.Data = append(seg.Data, 0xff, marker)
-	}
-
-	return segments, nil
-}
-
 // EncodeSegment writes the given segment.
 func EncodeSegment(w io.Writer, seg Segment) error {
-	// Image data is written raw and _should_ be preceded by an SOS segment
-	if XXX == seg.Marker {
-		_, err := w.Write(seg.Data)
-		return err
-	}
-	// Everything else needs the 0xff, marker and potential payload
+	// Everything needs the 0xff, marker and potential payload
 	_, err := w.Write([]byte{0xff, byte(seg.Marker)})
 	if err != nil || seg.Data == nil {
 		return err
