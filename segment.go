@@ -28,6 +28,14 @@ type Segment struct {
 	Data []byte
 }
 
+func NewSegment(m Marker, data []byte) Segment {
+	ref := emptyRef(m, -1)
+	if data != nil {
+		ref.Size += len(data) + 2
+	}
+	return Segment{ref, data}
+}
+
 // emptyRef creates a segment reference without a payload
 func emptyRef(m Marker, off int64) SegmentRef {
 	return SegmentRef{m, 2, off}
