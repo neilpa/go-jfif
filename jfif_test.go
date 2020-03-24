@@ -17,7 +17,7 @@ var tests = []struct {
 	meta, img []seg
 }{
 	{
-		path:      "lego.jpg",
+		path: "lego.jpg",
 		meta: []seg{
 			{marker: SOI, size: 0},
 			{marker: APP0, size: 14},
@@ -32,7 +32,7 @@ var tests = []struct {
 			{marker: DHT, size: 72},
 			{marker: SOS, size: 10},
 		},
-		img: []seg {
+		img: []seg{
 			{marker: XXX, size: 216980},
 			{marker: EOI, size: 0},
 		},

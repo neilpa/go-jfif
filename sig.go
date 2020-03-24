@@ -43,7 +43,6 @@ const (
 	SigAdobe = "Adobe\x00"
 )
 
-
 var appnSigs = [16][]string{
 	{SigJFIF, SigJFXX},
 	{SigExif, SigXMP, SigExtendedXMP},
