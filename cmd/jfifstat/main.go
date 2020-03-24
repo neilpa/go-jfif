@@ -1,4 +1,5 @@
-// jfifstat prints segment marker, size, and signature info from JPEG files.
+// jfifstat prints segment markers, sizes, and optional APPN signatures from
+// JPEG files. Stops after the Start of Stream (SOS) segment.
 package main
 
 import (
@@ -27,7 +28,7 @@ func realMain(args []string) int {
 			return fatal(err.Error())
 		}
 
-		segs, err := jfif.DecodeSegments(f)
+		segs, err := jfif.DecodeMetadata(f)
 		if err != nil {
 			return fatal(err.Error())
 		}
@@ -55,7 +56,8 @@ func usageError(msg string) int {
 func printUsage() {
 	fmt.Fprintf(os.Stderr, `Usage: %s jpeg [jpeg...]
 
-  jfifstat prints segment marker, size, and signature info from JPEG files.
+  jfifstat prints segment markers, sizes, and optional APPN signatures from
+  JPEG files. Stops after the Start of Stream (SOS) segment.
 `, os.Args[0])
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr)
