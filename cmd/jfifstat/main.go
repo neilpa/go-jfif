@@ -36,6 +36,7 @@ func realMain(args []string, stdout io.Writer) int {
 
 		for _, s := range segs {
 			sig, _, _ := s.AppPayload()
+			sig = jfif.CleanSig(sig)
 			if flag.NArg() > 1 {
 				if sig != "" {
 					fmt.Fprintf(stdout, "%s\t%s\t%d\t%s\n", arg, s.Marker, len(s.Data), sig)

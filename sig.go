@@ -1,5 +1,7 @@
 package jfif
 
+import "strings"
+
 // Various signatures that identify different APPn segments
 
 // APP0
@@ -59,4 +61,9 @@ var appnSigs = [16][]string{
 	{SigDucky},
 	{SigPhotoshop3, SigPhotoshop2},
 	{SigAdobe},
+}
+
+// CleanSig strips non-printable suffix characters
+func CleanSig(sig string) string {
+	return strings.TrimRight(sig, "\x00\xFF")
 }

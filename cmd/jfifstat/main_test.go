@@ -9,9 +9,9 @@ import (
 
 func TestMain(t *testing.T) {
 	tests := []struct {
-		in string
+		in  string
 		out []string
-	} {
+	}{
 		{
 			"../../testdata/lego.jpg",
 			[]string{
@@ -37,11 +37,6 @@ func TestMain(t *testing.T) {
 			if exit != 0 {
 				t.Fatalf("exit: %d", exit)
 			}
-			//got := strings.TrimSpace(stdout.String())
-			//want := strings.Join(tt.out, "\n")
-			//if got != want {
-			//	t.Errorf("got:\n%s\nwant:\n%s\n", got, want)
-			//}
 
 			got := strings.Split(strings.TrimSpace(stdout.String()), "\n")
 			if len(got) != len(tt.out) {
