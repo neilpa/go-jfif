@@ -29,7 +29,7 @@ func realMain(args []string, stdout io.Writer) int {
 			return fatal(err.Error())
 		}
 
-		segs, err := jfif.DecodeMetadata(f)
+		segs, err := jfif.DecodeSegments(f)
 		if err != nil {
 			return fatal(err.Error())
 		}
