@@ -35,6 +35,9 @@ var tests = []struct {
 	},
 }
 
+func TestScanSegments(t *testing.T) { // TODO
+}
+
 func TestDecodeSegments(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
@@ -66,7 +69,7 @@ func verifySegments(t *testing.T, segments []Segment, want []seg) {
 		w := want[i]
 		w.offset = offset
 		if g != w {
-			t.Fatalf("%d: got %d, want %d", i, g, w)
+			t.Errorf("seg %d: got %d, want %d", i, g, w)
 		}
 		// 0xff and marker
 		offset += 2
