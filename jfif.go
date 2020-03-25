@@ -146,7 +146,7 @@ func readSegments(r io.Reader, fn func(*positionalReader, SegmentP) error) error
 
 		for sentinel != 0xff {
 			// Technically a format error but mimics go's stdlib which is
-			// itself matching the behavor of libjpeg.
+			// itself matching the behavior of libjpeg.
 			sentinel = marker
 			marker, err = readByte(r)
 			if err != nil {
@@ -155,14 +155,10 @@ func readSegments(r io.Reader, fn func(*positionalReader, SegmentP) error) error
 		}
 		if marker == 0 {
 			// Byte Stuffing, e.g. "Extraneous Data"
-			// TODO Does this actually matter if reading to EOI once the
-			// SOS marker is seen? If so, should these be included?
 			continue
 		}
 		for marker == 0xff {
 			// Eat fill bytes that may precede a marker
-			// TODO Does this actually matter if reading to EOI once the
-			// SOS marker is seen?
 			marker, err = readByte(r)
 			if err != nil {
 				return err
