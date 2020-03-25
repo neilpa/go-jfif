@@ -74,7 +74,7 @@ func (s Segment) AppPayload() (string, []byte, error) {
 // marker is read, or an error is encountered, including EOF.
 func ScanSegments(r io.Reader) ([]SegmentP, error) {
 	var segs []SegmentP
-	err := readSegments(r, func (r *positionalReader, sp SegmentP) error {
+	err := readSegments(r, func(r *positionalReader, sp SegmentP) error {
 		if sp.Length > 0 {
 			// Simply skip past the length of the segment
 			if _, err := r.Seek(int64(sp.Length)-2, io.SeekCurrent); err != nil {
@@ -93,7 +93,7 @@ func ScanSegments(r io.Reader) ([]SegmentP, error) {
 // data.
 func DecodeSegments(r io.Reader) ([]Segment, error) {
 	var segs []Segment
-	err := readSegments(r, func (r *positionalReader, sp SegmentP) error {
+	err := readSegments(r, func(r *positionalReader, sp SegmentP) error {
 		s := Segment{SegmentP: sp}
 		if s.Length > 0 {
 			// Length includes the 2 bytes for itself
@@ -217,7 +217,7 @@ func readByte(r io.Reader) (b byte, err error) {
 // otherwise fails for seeks relative to the start or end of the stream.
 type positionalReader struct {
 	reader io.Reader
-	pos  int64
+	pos    int64
 }
 
 // Read is a pass-thru to the underlying io.Reader.Read
@@ -233,16 +233,16 @@ func (pr *positionalReader) Read(p []byte) (n int, err error) {
 func (pr *positionalReader) Seek(offset int64, whence int) (int64, error) {
 	var err error
 	switch s := pr.reader.(type) {
-		case io.Seeker:
-			pr.pos, err = s.Seek(offset, whence)
-		default:
-			if whence != io.SeekCurrent {
-				err = ErrUnseekableReader
-			} else {
-				var n int64
-				n, err = io.CopyN(ioutil.Discard, pr.reader, offset)
-				pr.pos += n
-			}
+	case io.Seeker:
+		pr.pos, err = s.Seek(offset, whence)
+	default:
+		if whence != io.SeekCurrent {
+			err = ErrUnseekableReader
+		} else {
+			var n int64
+			n, err = io.CopyN(ioutil.Discard, pr.reader, offset)
+			pr.pos += n
+		}
 	}
 	return pr.pos, err
 }
