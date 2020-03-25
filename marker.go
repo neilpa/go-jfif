@@ -152,5 +152,5 @@ func (m Marker) String() string {
 	case EOI:
 		return "EOI"
 	}
-	return fmt.Sprintf("%X", byte(m))
+	return fmt.Sprintf("0x%X", byte(m))
 }
