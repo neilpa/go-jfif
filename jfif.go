@@ -77,7 +77,7 @@ func ScanSegments(r io.Reader) ([]SegmentP, error) {
 	err := readSegments(r, func (r *positionalReader, sp SegmentP) error {
 		if sp.Length > 0 {
 			// Simply skip past the length of the segment
-			if _, err := r.Seek(io.SeekCurrent, int(sp.Length)-2); err != nil {
+			if _, err := r.Seek(int64(sp.Length)-2, io.SeekCurrent); err != nil {
 				return err
 			}
 		}

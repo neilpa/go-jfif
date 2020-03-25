@@ -13,6 +13,16 @@ func TestMain(t *testing.T) {
 		out []string
 	}{
 		{
+			"../../testdata/min.jpg",
+			[]string{
+				"SOI	0",
+				"DQT	65",
+				"0xC9	9",
+				"0xCC	4",
+				"SOS	6",
+			},
+		},
+		{
 			"../../testdata/lego.jpg",
 			[]string{
 				"SOI	0",
