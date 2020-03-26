@@ -2,6 +2,7 @@
 // matches a known signature it prints that directly. Otherwise, it
 // tries to figure it out by looking for non-printable characters
 // up to some limit.
+// TODO Should just make this an option for jfifstat
 package main
 
 import (
