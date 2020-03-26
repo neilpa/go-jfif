@@ -17,5 +17,6 @@ tidy:
 	go mod tidy
 
 clean:
+	rm -rf bin/
 
 .PHONY: all jfifstat xmpdump test fmt tidy clean

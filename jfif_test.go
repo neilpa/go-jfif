@@ -15,8 +15,8 @@ var tests = []struct {
 		refs: []SegmentP{
 			{0, SOI, 0},
 			{2, DQT, 67},
-			{71, Marker(0xC9), 11},
-			{84, Marker(0xCC), 6},
+			{71, SOF9, 11},
+			{84, DAC, 6},
 			{92, SOS, 8},
 		},
 	},
