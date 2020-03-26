@@ -8,8 +8,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"io/ioutil"
 	"strings"
+
+	xio "neilpa.me/go-x/io"
 )
 
 var (
@@ -74,7 +75,7 @@ func (s Segment) AppPayload() (string, []byte, error) {
 // marker is read, or an error is encountered, including EOF.
 func ScanSegments(r io.Reader) ([]SegmentP, error) {
 	var segs []SegmentP
-	err := readSegments(r, func(r *positionalReader, sp SegmentP) error {
+	err := readSegments(r, func(r io.ReadSeeker, sp SegmentP) error {
 		if sp.Length > 0 {
 			// Simply skip past the length of the segment
 			if _, err := r.Seek(int64(sp.Length)-2, io.SeekCurrent); err != nil {
@@ -93,7 +94,7 @@ func ScanSegments(r io.Reader) ([]SegmentP, error) {
 // data.
 func DecodeSegments(r io.Reader) ([]Segment, error) {
 	var segs []Segment
-	err := readSegments(r, func(r *positionalReader, sp SegmentP) error {
+	err := readSegments(r, func(r io.ReadSeeker, sp SegmentP) error {
 		s := Segment{SegmentP: sp}
 		if s.Length > 0 {
 			// Length includes the 2 bytes for itself
@@ -112,13 +113,13 @@ func DecodeSegments(r io.Reader) ([]Segment, error) {
 // The provided function is then called with each segment for processing
 // the payload data. This function must advance the reader to the end of the
 // given segment for the next read.
-// TODO Could forego that requirement given the use of positionalReader
-func readSegments(r io.Reader, fn func(*positionalReader, SegmentP) error) error {
-	pr, ok := r.(*positionalReader)
+// TODO Could forego that requirement given the use of xio.TrackingReader
+func readSegments(r io.Reader, fn func(io.ReadSeeker, SegmentP) error) error {
+	tr, ok := r.(*xio.TrackingReader)
 	if !ok {
-		pr = &positionalReader{reader: r}
+		tr = xio.NewTrackingReader(r)
 	}
-	r = pr
+	r = tr
 
 	var magic [2]byte
 	err := binary.Read(r, binary.BigEndian, &magic)
@@ -129,7 +130,7 @@ func readSegments(r io.Reader, fn func(*positionalReader, SegmentP) error) error
 		return ErrInvalid
 	}
 
-	err = fn(pr, SegmentP{Marker: Marker(magic[1])})
+	err = fn(tr, SegmentP{Marker: Marker(magic[1])})
 	if err != nil {
 		return err
 	}
@@ -166,7 +167,7 @@ func readSegments(r io.Reader, fn func(*positionalReader, SegmentP) error) error
 		}
 
 		// Set the offset to the 0xff byte preceding the marker
-		s := SegmentP{Marker: Marker(marker), Offset: pr.pos - 2}
+		s := SegmentP{Marker: Marker(marker), Offset: tr.Offset() - 2}
 
 		// TODO Are there expected zero-length markers that can be skipped
 		if err = binary.Read(r, binary.BigEndian, &s.Length); err != nil {
@@ -175,7 +176,7 @@ func readSegments(r io.Reader, fn func(*positionalReader, SegmentP) error) error
 		if s.Length < 2 {
 			return ErrShortSegment
 		}
-		if err = fn(pr, s); err != nil {
+		if err = fn(tr, s); err != nil {
 			return err
 		}
 		if marker == byte(SOS) {
@@ -205,40 +206,4 @@ func EncodeSegment(w io.Writer, seg Segment) error {
 func readByte(r io.Reader) (b byte, err error) {
 	err = binary.Read(r, binary.BigEndian, &b)
 	return
-}
-
-// positionalReader wraps an io.Reader to that tracks the offset as bytes
-// are read. Additionally, it adds a best-effort io.Seeker implementation.
-// For a pure io.Reader that is limited to usage of io.SeeekCurrent and
-// otherwise fails for seeks relative to the start or end of the stream.
-type positionalReader struct {
-	reader io.Reader
-	pos    int64
-}
-
-// Read is a pass-thru to the underlying io.Reader.Read
-func (pr *positionalReader) Read(p []byte) (n int, err error) {
-	n, err = pr.reader.Read(p)
-	pr.pos += int64(n)
-	return
-}
-
-// Seek implements io.Seeker. If the wrapped io.Reader also implements
-// io.Seeker this is a pass-thru. Otherwise, only io.SeekCurrent is
-// supported and ErrUnseekableReader is returned for seeks from start/end.
-func (pr *positionalReader) Seek(offset int64, whence int) (int64, error) {
-	var err error
-	switch s := pr.reader.(type) {
-	case io.Seeker:
-		pr.pos, err = s.Seek(offset, whence)
-	default:
-		if whence != io.SeekCurrent {
-			err = ErrUnseekableReader
-		} else {
-			var n int64
-			n, err = io.CopyN(ioutil.Discard, pr.reader, offset)
-			pr.pos += n
-		}
-	}
-	return pr.pos, err
 }
