@@ -178,7 +178,7 @@ func readSegments(r io.Reader, fn func(*positionalReader, SegmentP) error) error
 		if err = fn(pr, s); err != nil {
 			return err
 		}
-		if marker == SOS {
+		if marker == byte(SOS) {
 			break
 		}
 	}

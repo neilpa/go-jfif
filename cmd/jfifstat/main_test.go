@@ -17,8 +17,8 @@ func TestMain(t *testing.T) {
 			[]string{
 				"SOI	0",
 				"DQT	65",
-				"0xC9	9",
-				"0xCC	4",
+				"SOF9	9",
+				"DAC	4",
 				"SOS	6",
 			},
 		},
