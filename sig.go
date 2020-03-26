@@ -4,6 +4,8 @@ import "strings"
 
 // Various signatures that identify different APPn segments
 
+// https://exiftool.org/TagNames/JPEG.html
+
 // APP0
 const (
 	SigJFIF = "JFIF\x00"
@@ -21,6 +23,13 @@ const (
 // APP2
 const (
 	SigICCProfile = "ICC_PROFILE\x00"
+	// TODO This is a guess based on inspecting examples from:
+	// https://github.com/drewnoakes/metadata-extractor-images
+	// A little more information at:
+	// https://en.wikipedia.org/wiki/Exif#FlashPix_extensions
+	// http://www.hackerfactor.com/blog/index.php?/archives/271-JPEG-Application-Blocks.html
+	// https://exiftool.org/TagNames/FlashPix.html
+	SigFlashPix = "FPXR\x00\x00"
 )
 
 // APP3
@@ -48,7 +57,7 @@ const (
 var appnSigs = [16][]string{
 	{SigJFIF, SigJFXX},
 	{SigExif, SigXMP, SigExtendedXMP},
-	{SigICCProfile},
+	{SigICCProfile, SigFlashPix},
 	{SigMETA, SigMeta},
 	{},
 	{},
