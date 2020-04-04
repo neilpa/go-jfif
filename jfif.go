@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	// ErrInvalid means the reader did not begin with a start of image
+	// ErrInvalidJPEG means the reader did not begin with a start of image
 	// marker.
-	ErrInvalid = errors.New("Invalid JPEG")
+	ErrInvalidJPEG = errors.New("Invalid JPEG")
 
 	// ErrShortSegment means a segment length was < 2 bytes.
 	ErrShortSegment = errors.New("Short segment")
@@ -127,7 +127,7 @@ func readSegments(r io.Reader, fn func(io.ReadSeeker, SegmentP) error) error {
 		return err
 	}
 	if magic[0] != 0xff || magic[1] != byte(SOI) {
-		return ErrInvalid
+		return ErrInvalidJPEG
 	}
 
 	err = fn(tr, SegmentP{Marker: Marker(magic[1])})
@@ -195,6 +195,7 @@ func EncodeSegment(w io.Writer, seg Segment) error {
 		return err
 	}
 	// Payload size includes it's own 2-bytes
+	// TODO Validate the lenght of Data here?
 	err = binary.Write(w, binary.BigEndian, uint16(len(seg.Data))+2)
 	if err != nil {
 		return err
