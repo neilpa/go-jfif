@@ -58,7 +58,7 @@ func (f *File) Close() (err error) {
 
 // Query finds existing segments that matches the given marker
 func (f *File) Query(m Marker) ([]SegmentP, error) {
-	refs := make([]SegmentP ,0)
+	refs := make([]SegmentP, 0)
 	for _, r := range f.refs {
 		if r.Marker == m {
 			refs = append(refs, r)
@@ -99,7 +99,7 @@ func (f *File) Update(r SegmentP, buf []byte) error {
 	}
 
 	seg := Segment{ // TODO Can I avoid all the "+/- 2's" everywhere
-		SegmentP{r.Offset, r.Marker, uint16(len(buf)+2)}, buf,
+		SegmentP{r.Offset, r.Marker, uint16(len(buf) + 2)}, buf,
 	}
 	err = EncodeSegment(f.f, seg)
 	if err != nil {
