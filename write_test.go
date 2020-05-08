@@ -10,10 +10,7 @@ import (
 	"testing"
 )
 
-func TestFileQuery(t *testing.T) { // TODO
-}
-
-func TestFileAppend(t *testing.T) {
+func TestAppend(t *testing.T) {
 	var tests = []struct {
 		name string
 		ref  Pointer
@@ -48,9 +45,12 @@ func TestFileAppend(t *testing.T) {
 			defer os.Remove(path)
 			defer temp.Close()
 
-			fmt.Println("TODO: TestFileAppend:", path)
+			fmt.Println("TODO: TestAppend:", path)
 		})
 	}
+}
+
+func TestFileQuery(t *testing.T) { // TODO
 }
 
 func TestFileUpdate(t *testing.T) {
@@ -127,4 +127,3 @@ func TestFileUpdate(t *testing.T) {
 		})
 	}
 }
-
