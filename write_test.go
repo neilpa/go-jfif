@@ -2,50 +2,40 @@ package jfif
 
 import (
 	"bytes"
-	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
+
+	xio "neilpa.me/go-x/io"
 )
 
 func TestAppend(t *testing.T) {
 	var tests = []struct {
 		name string
-		ref  Pointer
-		buf  []byte
-
+		seg Segment
 		golden string
 	}{
 		{
-			"min",
-			Pointer{Offset: 2, Marker: DQT, Length: 67},
-			[]byte{0, // Pq and Tq bytes
-				// Arbitrary DQT table for testing
-				16, 11, 10, 16, 24, 40, 51, 61,
-				12, 12, 14, 19, 26, 58, 60, 55,
-				14, 13, 16, 24, 40, 57, 69, 56,
-				14, 17, 22, 29, 51, 87, 80, 62,
-				18, 22, 37, 56, 68, 109, 103, 77,
-				24, 35, 55, 64, 81, 104, 113, 92,
-				49, 64, 78, 87, 103, 121, 120, 101,
-				72, 92, 95, 98, 112, 100, 103, 99,
-			},
-			"min.dqt.jpg",
+			"min.jpg",
+			Segment{Pointer: Pointer{Marker: COM}, Data: []byte("hello")},
+			"min.hello.jpg",
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			temp, err := ioutil.TempFile(os.TempDir(), "jfif-test-append-"+tt.name)
+		t.Run(tt.golden, func(t *testing.T) {
+			path, err := xio.TempFileCopy(filepath.Join("testdata", tt.name), "jfif-test-append-"+tt.golden)
 			if err != nil {
 				t.Fatal(err)
 			}
-			path := temp.Name()
 			defer os.Remove(path)
-			defer temp.Close()
 
-			fmt.Println("TODO: TestAppend:", path)
+			err = Append(path, tt.seg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			compareFiles(t, path, filepath.Join("testdata", tt.golden))
 		})
 	}
 }
@@ -62,7 +52,7 @@ func TestFileUpdate(t *testing.T) {
 		golden string
 	}{
 		{
-			"min",
+			"min.jpg",
 			Pointer{Offset: 2, Marker: DQT, Length: 67},
 			[]byte{0, // Pq and Tq bytes
 				// Arbitrary DQT table for testing
@@ -80,26 +70,12 @@ func TestFileUpdate(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			temp, err := ioutil.TempFile(os.TempDir(), "jfif-test-update-"+tt.name)
+		t.Run(tt.golden, func(t *testing.T) {
+			path, err := xio.TempFileCopy(filepath.Join("testdata", tt.name), "jfif-test-update-"+tt.golden)
 			if err != nil {
 				t.Fatal(err)
 			}
-			path := temp.Name()
 			defer os.Remove(path)
-			defer temp.Close()
-
-			src, err := os.Open(filepath.Join("testdata", tt.name+".jpg"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer src.Close()
-
-			_, err = io.Copy(temp, src)
-			if err != nil {
-				t.Fatal(err)
-			}
-			temp.Close()
 
 			edit, err := Edit(path)
 			if err != nil {
@@ -113,17 +89,21 @@ func TestFileUpdate(t *testing.T) {
 			}
 			edit.Close()
 
-			want, err := ioutil.ReadFile(filepath.Join("testdata", tt.golden))
-			if err != nil {
-				t.Fatal(err)
-			}
-			got, err := ioutil.ReadFile(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(got, want) {
-				t.Error("bytes don't match") // TODO Better diff
-			}
+			compareFiles(t, path, filepath.Join("testdata", tt.golden))
 		})
+	}
+}
+
+func compareFiles(t *testing.T, path, golden string) {
+	want, err := ioutil.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("bytes don't match\ngot:  % x\nwant: % x", got, want) // TODO Better diff
 	}
 }

@@ -32,7 +32,7 @@ func realMain(args []string, stdin io.Reader) int {
 	for _, arg := range flag.Args() {
 		//fmt.Println("embeddding", arg, "buf", buf)
 
-		err = jfif.Append(arg, jfif.Patch{jfif.COM, buf})
+		err = jfif.Add(arg, jfif.COM, buf)
 		if err != nil {
 			return fatal(err.Error()) // todo: continue writing the other files?
 		}

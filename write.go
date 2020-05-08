@@ -2,6 +2,7 @@ package jfif
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"io"
 	"math"
@@ -22,15 +23,31 @@ var (
 	ErrOversizeSegment = errors.New("Oversize segment")
 )
 
-// Patch is used to insert new JFIF segments just before the SOS segment.
-type Patch struct { // TODO better name or use segments directly ignoring offset
-	// Marker is the type of segment
-	Marker Marker
-	// Data are the segment bytes that will be appended. Max size is 0xFFFF-2
-	Data []byte
+// EncodeSegment writes the given segment.
+func EncodeSegment(w io.Writer, seg Segment) error { // TODO Segment.WriteTo?
+	// Everything else needs the 0xff, marker and potential payload
+	_, err := w.Write([]byte{0xff, byte(seg.Marker)})
+	if err != nil || seg.Data == nil {
+		return err
+	}
+	// Payload size includes it's own 2-bytes
+	// TODO Validate the length of Data here?
+	err = binary.Write(w, binary.BigEndian, uint16(len(seg.Data))+2)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(seg.Data)
+	return err
 }
 
-// Append new JFIF segments to the file at path.
+// Add a new JFIF segment with the given data before the SOS segment. See
+// Append for more details.
+func Add(path string, m Marker, buf []byte) error {
+	return Append(path, Segment{ Pointer: Pointer{Marker: m}, Data: buf})
+}
+
+// Append new JFIF segments to the file at path. Offsets are ignroed and
+// these are added just before SOS segment.
 //
 // Notes:
 //	- Under the hood this creates a temp-copy of the original file so
@@ -41,24 +58,18 @@ type Patch struct { // TODO better name or use segments directly ignoring offset
 //
 // TODO: Higher-level version of this that could be smarter for XMP data
 // TODO: Return the updated pointer data?
-func Append(path string, patches ...Patch) error {
+func Append(path string, segs ...Segment) error {
 	// Prep the buffer for writing
 	var buf bytes.Buffer
-	for _, p := range patches {
-		seg := Segment{}
-		seg.Marker = p.Marker
-		seg.Offset = -1
-
+	for _, seg := range segs {
 		l := len(seg.Data) + 2
 		if l > math.MaxUint16 {
 			return ErrOversizeSegment
 		}
-		seg.Length = uint16(l) // TODO not right for oversize segments
-		// TODO: what about an embedded Data where the first two bytes are the length
-		seg.Data = p.Data
+		seg.Length = uint16(l) // TODO: what about an embedded Data where the first two bytes are the length
 
 		// TODO Would be nice to avoid yet-another-copy of data and plumb
-		// through a custom reader that calculated the size
+		// through a custom reader to SpliceFile and the known size.
 		if err := EncodeSegment(&buf, seg); err != nil {
 			return err
 		}
@@ -76,6 +87,10 @@ func Append(path string, patches ...Patch) error {
 
 // File is used to perform in-place updates to JFIF segments to a backing
 // file on-disk.
+//
+// TODO: This may not be all that valuable verse doing a proper splice.
+// in a copied version of the file and replacing over top of it. This
+// can lead to file corruption if not careful...
 type File struct {
 	// f is the underlying file on disk.
 	f *os.File
@@ -91,10 +106,6 @@ type File struct {
 //
 // TODO: Otherise, "short-segments" retain the desired size but there
 // are 0xFF fill bytes used for padding until the next segment.
-//
-// TODO: This may not be all that valuable verse doing a proper splice.
-// in a copied version of the file and replacing over top of it. This
-// can lead to file corruption if not careful...
 func Edit(path string) (*File, error) {
 	f, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {

@@ -238,23 +238,6 @@ func readSegments(r io.Reader, fn func(io.ReadSeeker, Pointer) error) error {
 	return nil
 }
 
-// EncodeSegment writes the given segment.
-func EncodeSegment(w io.Writer, seg Segment) error { // TODO Segment.WriteTo?
-	// Everything else needs the 0xff, marker and potential payload
-	_, err := w.Write([]byte{0xff, byte(seg.Marker)})
-	if err != nil || seg.Data == nil {
-		return err
-	}
-	// Payload size includes it's own 2-bytes
-	// TODO Validate the length of Data here?
-	err = binary.Write(w, binary.BigEndian, uint16(len(seg.Data))+2)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(seg.Data)
-	return err
-}
-
 func readByte(r io.Reader) (b byte, err error) { // TODO This is probably slow
 	err = binary.Read(r, binary.BigEndian, &b)
 	return
