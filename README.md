@@ -5,3 +5,15 @@
 Basic reading of [JPEG File Interchange Format (JFIF)][wiki-jfif] segments
 
 [wiki-jfif]: https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format#File_format_structure
+
+## Usage
+
+TODO
+
+## Tools
+
+TODO
+
+## License
+
+[MIT](/LICENSE)
