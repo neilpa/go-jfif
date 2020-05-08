@@ -43,7 +43,7 @@ func EncodeSegment(w io.Writer, seg Segment) error { // TODO Segment.WriteTo?
 // Add a new JFIF segment with the given data before the SOS segment. See
 // Append for more details.
 func Add(path string, m Marker, buf []byte) error {
-	return Append(path, Segment{ Pointer: Pointer{Marker: m}, Data: buf})
+	return Append(path, Segment{Pointer: Pointer{Marker: m}, Data: buf})
 }
 
 // Append new JFIF segments to the file at path. Offsets are ignroed and

@@ -81,7 +81,7 @@ func (p Pointer) LoadSegment(r io.ReaderAt) (Segment, error) {
 		if _, err = r.ReadAt(buf, p.Offset+2); err != nil {
 			return s, err
 		}
-		if buf[0] != byte(p.Length >> 8) || buf[1] != byte(p.Length) {
+		if buf[0] != byte(p.Length>>8) || buf[1] != byte(p.Length) {
 			return s, ErrPointerLoadMismatch // TODO embed the length difference
 		}
 

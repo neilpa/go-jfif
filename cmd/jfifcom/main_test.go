@@ -14,7 +14,7 @@ func TestMain(t *testing.T) {
 	root := filepath.Join("..", "..", "testdata")
 
 	tests := []struct {
-		in  string
+		in     string
 		golden string
 	}{
 		{

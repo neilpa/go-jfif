@@ -12,8 +12,8 @@ import (
 
 func TestAppend(t *testing.T) {
 	var tests = []struct {
-		name string
-		seg Segment
+		name   string
+		seg    Segment
 		golden string
 	}{
 		{
