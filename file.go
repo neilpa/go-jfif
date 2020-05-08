@@ -131,58 +131,6 @@ func (f *File) Query(m Marker) ([]Pointer, error) {
 	return refs, nil
 }
 
-// Add new segments at the end of the JFIF header, before
-// the first SOI marker.
-//
-// Notes:
-//	* This is an expensive operation. It requires shifting all of
-//		image bytes on disk to make space.
-//	* Offset and Length are ignored on the incoming segments. They
-//		are simply calcluted from the provided Data in order.
-//
-// TODO What about a multi-segment that could have splitting/chunking behavior?
-//
-// TODO: This interface doesn't quite work since we need to close the file
-//	descriptor and do the move...
-func (f *File) Add(segs ...Segment) error {
-	// TODO Probably want an xio primitive to insert-in-middle operation
-	if len(f.refs) < 3 {
-		return errors.New("todo: Not enough file segments to start")
-	}
-
-	last := f.refs[len(f.refs)-1]
-
-	// Calculate how much extra space we need.
-	size := int64(0)
-	insert := last.Offset
-	for i, s := range segs {
-		s.Offset = insert + size
-		if len(s.Data) > 0 {
-			l := len(s.Data) + 2
-			if l > 0xffff { // TODO double-check actual max segment size
-				return ErrOversizeSegment
-			}
-			s.Length = uint16(l)
-		} else {
-			s.Length = 0
-		}
-		size += s.DiskSize()
-		segs[i] = s
-	}
-
-	// TODO Apply bookkeeping for the `last` SOS marker offset
-
-	return nil
-}
-
-// Sync writes any updated contents of the segment back to disk
-//
-// TODO: Note that at some point this may "do the right thing" when
-// further downstream allocations need ot happen.
-func (f *File) Sync(s Segment) error {
-	return f.Update(s.Pointer, s.Data)
-}
-
 // Update replaces the payload for the given segment ref. Returns an
 // error if it's too large or doesn't match a known segment in this
 // file.
