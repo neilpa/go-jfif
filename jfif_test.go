@@ -8,11 +8,11 @@ import (
 
 var tests = []struct {
 	path string
-	refs []SegmentP
+	refs []Pointer
 }{
 	{
 		path: "min.jpg",
-		refs: []SegmentP{
+		refs: []Pointer{
 			{0, SOI, 0},
 			{2, DQT, 67},
 			{71, SOF9, 11},
@@ -22,7 +22,7 @@ var tests = []struct {
 	},
 	{
 		path: "lego.jpg",
-		refs: []SegmentP{
+		refs: []Pointer{
 			{0, SOI, 0},
 			{2, APP0, 16},
 			{20, APP1, 11310},
@@ -68,9 +68,9 @@ func TestDecodeSegments(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			refs := make([]SegmentP, len(segs))
+			refs := make([]Pointer, len(segs))
 			for i, s := range segs {
-				refs[i] = s.SegmentP
+				refs[i] = s.Pointer
 				if s.Length > 0 && len(s.Data)+2 != int(s.Length) {
 					t.Errorf("data %d: got %d, want %d", i, len(s.Data), s.Length-2)
 				}
@@ -83,7 +83,10 @@ func TestDecodeSegments(t *testing.T) {
 func TestEncodeSegment(t *testing.T) { // TODO
 }
 
-func verifySegments(t *testing.T, got, want []SegmentP) {
+func TestLoadSegment(t *testing.T) { // TODO
+}
+
+func verifySegments(t *testing.T, got, want []Pointer) {
 	if len(got) != len(want) {
 		t.Errorf("len: got %d, want %d", len(got), len(want))
 		return

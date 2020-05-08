@@ -21,6 +21,10 @@ var (
 	// ErrShortSegment means a segment length was < 2 bytes.
 	ErrShortSegment = errors.New("Short segment")
 
+	// ErrPointerLoadMismatch means the pointer marker or length didn't
+	// match the expected segment header.
+	ErrPointerLoadMismatch = errors.New("Pointer load mismatch")
+
 	// ErrWrongMarker means a segment method was called where the marker
 	// didn't match an expected type.
 	ErrWrongMarker = errors.New("Wrong marker")
@@ -31,10 +35,13 @@ var (
 	// ErrUnseekableReader means a Seek was attempted from the start or end
 	// of an io.Reader that only supports streaming.
 	ErrUnseekableReader = errors.New("Unseekable reader")
+
+	// ByteOrder is the endian-ness of JFIF integers (big-endian).
+	ByteOrder = binary.BigEndian
 )
 
-// SegmentP represents a "pointer" to a distinct region of a JPEG file.
-type SegmentP struct {
+// Pointer to a distinct region/segment of a JPEG file.
+type Pointer struct {
 	// Offset is the address of the 0xff byte that started this segment that
 	// is then followed by the marker.
 	Offset int64
@@ -45,10 +52,52 @@ type SegmentP struct {
 	Length uint16
 }
 
+// DiskSize is the number of bytes required to encode the segment in a file
+func (p Pointer) DiskSize() int64 {
+	// 0xff, marker, length, [data]...
+	return 2 + int64(p.Length)
+}
+
+// LoadSegment creates a segment by reading data at the pointer. It
+// validates that the marker and length match _before_ reading data.
+//
+// TODO Note the semantics or ReaderAt blocking for the total bytes?
+func (p Pointer) LoadSegment(r io.ReaderAt) (Segment, error) {
+	s := Segment{p, nil}
+	if p.Length == 1 {
+		return s, ErrShortSegment
+	}
+
+	buf := make([]byte, 2)
+	_, err := r.ReadAt(buf, p.Offset)
+	if err != nil {
+		return s, err
+	}
+	if buf[0] != 0xFF || buf[1] != byte(p.Marker) {
+		return s, ErrPointerLoadMismatch // TODO embed the marker difference
+	}
+
+	if p.Length > 0 {
+		if _, err = r.ReadAt(buf, p.Offset+2); err != nil {
+			return s, err
+		}
+		if buf[0] != byte(p.Length >> 8) || buf[1] != byte(p.Length) {
+			return s, ErrPointerLoadMismatch // TODO embed the length difference
+		}
+
+		s.Data = make([]byte, int(p.Length)-2) // TODO s.DataLength = p.Length-2
+		if _, err = r.ReadAt(s.Data, p.Offset+4); err != nil {
+			return s, err
+		}
+	}
+
+	return s, nil
+}
+
 // Segment represents a distinct region of a JPEG file.
 type Segment struct {
-	// SegmentP embeds the positional information of the segment.
-	SegmentP
+	// Pointer embeds the positional information of the segment.
+	Pointer
 	// Data is the raw bytes of a segment, excluding the initial 4 bytes
 	// (e.g. 0xff, marker, and 2-byte length). For segments lacking a
 	// length it will be nil.
@@ -73,9 +122,11 @@ func (s Segment) AppPayload() (string, []byte, error) {
 
 // ScanSegments finds segment markers until the start of stream (SOS)
 // marker is read, or an error is encountered, including EOF.
-func ScanSegments(r io.Reader) ([]SegmentP, error) {
-	var segs []SegmentP
-	err := readSegments(r, func(r io.ReadSeeker, sp SegmentP) error {
+//
+// TODO Rename to be ScanPointers (or ScanLocs and rename Pointer => Loc)
+func ScanSegments(r io.Reader) ([]Pointer, error) {
+	var segs []Pointer
+	err := readSegments(r, func(r io.ReadSeeker, sp Pointer) error {
 		if sp.Length > 0 {
 			// Simply skip past the length of the segment
 			if _, err := r.Seek(int64(sp.Length)-2, io.SeekCurrent); err != nil {
@@ -94,8 +145,8 @@ func ScanSegments(r io.Reader) ([]SegmentP, error) {
 // data.
 func DecodeSegments(r io.Reader) ([]Segment, error) {
 	var segs []Segment
-	err := readSegments(r, func(r io.ReadSeeker, sp SegmentP) error {
-		s := Segment{SegmentP: sp}
+	err := readSegments(r, func(r io.ReadSeeker, sp Pointer) error {
+		s := Segment{Pointer: sp}
 		if s.Length > 0 {
 			// Length includes the 2 bytes for itself
 			s.Data = make([]byte, int(s.Length)-2)
@@ -114,7 +165,7 @@ func DecodeSegments(r io.Reader) ([]Segment, error) {
 // the payload data. This function must advance the reader to the end of the
 // given segment for the next read.
 // TODO Could forego that requirement given the use of xio.TrackingReader
-func readSegments(r io.Reader, fn func(io.ReadSeeker, SegmentP) error) error {
+func readSegments(r io.Reader, fn func(io.ReadSeeker, Pointer) error) error {
 	tr, ok := r.(*xio.TrackingReader)
 	if !ok {
 		tr = xio.NewTrackingReader(r)
@@ -130,7 +181,7 @@ func readSegments(r io.Reader, fn func(io.ReadSeeker, SegmentP) error) error {
 		return ErrInvalidJPEG
 	}
 
-	err = fn(tr, SegmentP{Marker: Marker(magic[1])})
+	err = fn(tr, Pointer{Marker: Marker(magic[1])})
 	if err != nil {
 		return err
 	}
@@ -167,16 +218,16 @@ func readSegments(r io.Reader, fn func(io.ReadSeeker, SegmentP) error) error {
 		}
 
 		// Set the offset to the 0xff byte preceding the marker
-		s := SegmentP{Marker: Marker(marker), Offset: tr.Offset() - 2}
+		p := Pointer{Marker: Marker(marker), Offset: tr.Offset() - 2}
 
 		// TODO Are there expected zero-length markers that can be skipped
-		if err = binary.Read(r, binary.BigEndian, &s.Length); err != nil {
+		if err = binary.Read(r, binary.BigEndian, &p.Length); err != nil {
 			return err
 		}
-		if s.Length < 2 {
+		if p.Length < 2 {
 			return ErrShortSegment
 		}
-		if err = fn(tr, s); err != nil {
+		if err = fn(tr, p); err != nil {
 			return err
 		}
 		if marker == byte(SOS) {
@@ -187,6 +238,24 @@ func readSegments(r io.Reader, fn func(io.ReadSeeker, SegmentP) error) error {
 	return nil
 }
 
+//// WriteTo TODO
+//func (seg Segment) WriteTo(w io.Writer) int64, error {
+//	// Everything else needs the 0xff, marker and potential payload
+//	n, err := w.Write([]byte{0xff, byte(seg.Marker)})
+//	if err != nil || seg.Data == nil {
+//		return n, err
+//	}
+//
+//	// Payload size includes it's own 2-bytes
+//	// TODO Validate the length of Data here?
+//	err = binary.Write(w, binary.BigEndian, uint16(len(seg.Data))+2)
+//	if err != nil {
+//		return err
+//	}
+//	_, err = w.Write(seg.Data)
+//	return err
+//}
+
 // EncodeSegment writes the given segment.
 func EncodeSegment(w io.Writer, seg Segment) error {
 	// Everything else needs the 0xff, marker and potential payload
@@ -195,7 +264,7 @@ func EncodeSegment(w io.Writer, seg Segment) error {
 		return err
 	}
 	// Payload size includes it's own 2-bytes
-	// TODO Validate the lenght of Data here?
+	// TODO Validate the length of Data here?
 	err = binary.Write(w, binary.BigEndian, uint16(len(seg.Data))+2)
 	if err != nil {
 		return err
@@ -204,7 +273,9 @@ func EncodeSegment(w io.Writer, seg Segment) error {
 	return err
 }
 
-func readByte(r io.Reader) (b byte, err error) {
+
+
+func readByte(r io.Reader) (b byte, err error) { // TODO This is probably slow
 	err = binary.Read(r, binary.BigEndian, &b)
 	return
 }

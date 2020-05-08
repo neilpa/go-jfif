@@ -1,9 +1,13 @@
 package jfif
 
 import (
+	"bytes"
 	"errors"
 	"io"
+	"math"
 	"os"
+
+	xio "neilpa.me/go-x/io"
 )
 
 var (
@@ -13,7 +17,62 @@ var (
 	// ErrOversizePayload means there's not enough space to update
 	// the segment data in-place.
 	ErrOversizePayload = errors.New("Oversize payload")
+
+	// ErrOversizeSegment means segment data was to large to append.
+	ErrOversizeSegment = errors.New("Oversize segment")
 )
+
+// Patch is used to insert new JFIF segments just before the SOS segment.
+type Patch struct { // TODO better name or use segments directly ignoring offset
+	// Marker is the type of segment
+	Marker Marker
+	// Data are the segment bytes that will be appended. Max size is 0xFFFF-2
+	Data []byte
+}
+
+// Append new JFIF segments to the file at path.
+//
+// Notes:
+//	- Under the hood this creates a temp-copy of the original file so
+//		that it can safely insert the new segments in the middle of the
+//		file. This avoids potential for corrupting data if an error is
+//		hit in the middle of the update. At the end the original path
+//		is replaced with a single os.Rename operation.
+//
+// TODO: Higher-level version of this that could be smarter for XMP data
+// TODO: Return the updated pointer data?
+func Append(path string, patches ...Patch) error {
+	// Prep the buffer for writing
+	var buf bytes.Buffer
+	for _, p := range patches {
+		seg := Segment{}
+		seg.Marker = p.Marker
+		seg.Offset = -1
+
+		l := len(seg.Data) + 2
+		if l > math.MaxUint16 {
+			return ErrOversizeSegment
+		}
+		seg.Length = uint16(l) // TODO not right for oversize segments
+		// TODO: what about an embedded Data where the first two bytes are the length
+		seg.Data = p.Data
+
+		// TODO Would be nice to avoid yet-another-copy of data and plumb
+		// through a custom reader that calculated the size
+		if err := EncodeSegment(&buf, seg); err != nil {
+			return err
+		}
+	}
+
+	f, err := os.Open(path)
+	ptrs, err := ScanSegments(f)
+	if err != nil {
+		return err
+	}
+	last := ptrs[len(ptrs)-1]
+
+	return xio.SpliceFile(f, buf.Bytes(), last.Offset)
+}
 
 // File is used to perform in-place updates to JFIF segments to a backing
 // file on-disk.
@@ -21,16 +80,21 @@ type File struct {
 	// f is the underlying file on disk.
 	f *os.File
 
-	// refs are the intially scanned segment pointers.
-	refs []SegmentP
+	// refs are the minimally scanned segment pointers.
+	refs []Pointer
 }
 
 // Edit opens and scans segments from a JFIF file. This should be
 // used to replace segments in-place without having to re-write the
 // full file. Note that this will fail on attempts to write segments
-// that would expend beyond the current bounds. Otherise, "short-segments"
-// retain the desired size but there are 0xFF fill bytes used for padding
-// until the next segment.
+// that would expand beyond the current bounds.
+//
+// TODO: Otherise, "short-segments" retain the desired size but there
+// are 0xFF fill bytes used for padding until the next segment.
+//
+// TODO: This may not be all that valuable verse doing a proper splice.
+// in a copied version of the file and replacing over top of it. This
+// can lead to file corruption if not careful...
 func Edit(path string) (*File, error) {
 	f, err := os.OpenFile(path, os.O_RDWR, 0)
 	if err != nil {
@@ -57,8 +121,8 @@ func (f *File) Close() (err error) {
 }
 
 // Query finds existing segments that matches the given marker
-func (f *File) Query(m Marker) ([]SegmentP, error) {
-	refs := make([]SegmentP, 0)
+func (f *File) Query(m Marker) ([]Pointer, error) {
+	refs := make([]Pointer, 0)
 	for _, r := range f.refs {
 		if r.Marker == m {
 			refs = append(refs, r)
@@ -67,10 +131,68 @@ func (f *File) Query(m Marker) ([]SegmentP, error) {
 	return refs, nil
 }
 
+// Add new segments at the end of the JFIF header, before
+// the first SOI marker.
+//
+// Notes:
+//	* This is an expensive operation. It requires shifting all of
+//		image bytes on disk to make space.
+//	* Offset and Length are ignored on the incoming segments. They
+//		are simply calcluted from the provided Data in order.
+//
+// TODO What about a multi-segment that could have splitting/chunking behavior?
+//
+// TODO: This interface doesn't quite work since we need to close the file
+//	descriptor and do the move...
+func (f *File) Add(segs ...Segment) error {
+	// TODO Probably want an xio primitive to insert-in-middle operation
+	if len(f.refs) < 3 {
+		return errors.New("todo: Not enough file segments to start")
+	}
+
+	last := f.refs[len(f.refs)-1]
+
+	// Calculate how much extra space we need.
+	size := int64(0)
+	insert := last.Offset
+	for i, s := range segs {
+		s.Offset = insert + size
+		if len(s.Data) > 0 {
+			l := len(s.Data) + 2
+			if l > 0xffff { // TODO double-check actual max segment size
+				return ErrOversizeSegment
+			}
+			s.Length = uint16(l)
+		} else {
+			s.Length = 0
+		}
+		size += s.DiskSize()
+		segs[i] = s
+	}
+
+	// TODO Apply bookkeeping for the `last` SOS marker offset
+
+	return nil
+}
+
+// Sync writes any updated contents of the segment back to disk
+//
+// TODO: Note that at some point this may "do the right thing" when
+// further downstream allocations need ot happen.
+func (f *File) Sync(s Segment) error {
+	return f.Update(s.Pointer, s.Data)
+}
+
 // Update replaces the payload for the given segment ref. Returns an
 // error if it's too large or doesn't match a known segment in this
 // file.
-func (f *File) Update(r SegmentP, buf []byte) error {
+//
+// Note:
+//	- This updates the file in-place so all of the general warnings
+//		apply w.r.t. potential file corruption. This should be limited
+//		to files that have already been copied and are intended to
+//		be edited directly.
+func (f *File) Update(r Pointer, buf []byte) error {
 	var i int
 	for ; i < len(f.refs); i++ {
 		if f.refs[i] == r {
@@ -92,14 +214,15 @@ func (f *File) Update(r SegmentP, buf []byte) error {
 	}
 
 	// Encode the updated segment to disk
-	// TODO Need to make sure to update our SegmentP copy
+	// TODO Need to make sure to update our Pointer copy
 	_, err := f.f.Seek(r.Offset, io.SeekStart)
 	if err != nil {
 		return err
 	}
 
 	seg := Segment{ // TODO Can I avoid all the "+/- 2's" everywhere
-		SegmentP{r.Offset, r.Marker, uint16(len(buf) + 2)}, buf,
+		Pointer{r.Offset, r.Marker, uint16(len(buf) + 2)},
+		buf,
 	}
 	err = EncodeSegment(f.f, seg)
 	if err != nil {
@@ -110,6 +233,6 @@ func (f *File) Update(r SegmentP, buf []byte) error {
 	}
 
 	// Update our in-memory location
-	f.refs[i] = seg.SegmentP
+	f.refs[i] = seg.Pointer
 	return nil
 }
